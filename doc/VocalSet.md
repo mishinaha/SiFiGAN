@@ -1,16 +1,20 @@
-# VocalSet 1.2
+# VocalSet
 
 歌唱音声データセット。20名の歌手（女性9名・男性11名）による17種類の歌唱技法を収録。
 
-- 入手元: https://zenodo.org/records/1442513
-- 展開先 (pakari): `/repo/VocalSet1-2/`
+- 入手元: https://zenodo.org/records/1203819 (VocalSet 1.1)
+- 展開先 (pakari): `/repo/VocalSet11/FULL/`
 - ライセンス: CC BY 4.0 (Zenodoページに記載)
+
+### バージョンについて
+
+VocalSet 1.2 (https://zenodo.org/records/1442513) も存在するが、音声ファイルは1.1と完全に同一（md5sumで確認済み）。1.2はdata_by_singer / data_by_technique / data_by_vowelの3つのビューとして同じファイルを3重コピーしているだけで、新規音声はゼロ。1.1の `FULL/` ディレクトリ (2.7GB) のみで十分。
 
 ## 基本統計
 
 | 項目 | 値 |
 |---|---|
-| WAV総数 (data_by_singer) | 3,613 |
+| WAV総数 | 3,613 |
 | 総再生時間 | 31,656秒 (約8.8時間) |
 | サンプルレート | 44,100 Hz |
 | ビット深度 | 16-bit |
@@ -19,38 +23,29 @@
 
 ## ディレクトリ構造
 
-3つのビュー（独立コピー、シンボリックリンクではない）で同じデータを異なる軸で整理:
-
 ```
-VocalSet1-2/
+VocalSet11/
 ├── readme-anon.txt               # 歌手の声種一覧
 ├── train_singers_technique.txt   # 学習用歌手リスト (15名)
 ├── test_singers_technique.txt    # テスト用歌手リスト (5名)
 ├── DataSetVocalises.pdf          # 歌手が歌った楽譜
-├── data_by_singer/               # 2.7 GB — 歌手→発声法→技法 の階層
-│   ├── female1/ ... female9/
-│   └── male1/ ... male11/
-│       ├── arpeggios/
-│       │   ├── belt/
-│       │   ├── breathy/
-│       │   ├── fast_forte/ slow_forte/ fast_piano/ slow_piano/
-│       │   ├── lip_trill/ straight/ vibrato/ vocal_fry/
-│       │   └── ...
-│       ├── scales/            # arpeggiosと同じ技法サブディレクトリ
-│       ├── long_tones/
-│       │   ├── forte/ pp/ straight/ trill/ trillo/
-│       │   ├── inhaled/ messa/
-│       │   └── ...
-│       └── excerpts/
-│           ├── spoken/ straight/ vibrato/
-│           └── ...
-├── data_by_technique/            # 2.7 GB — 技法→ファイル(フラット)
-│   ├── belt/ breathy/ fast_forte/ ...
-│   └── (17ディレクトリ, trilloは空)
-├── data_by_vowel/                # 2.4 GB — 母音→ファイル(フラット)
-│   ├── a/ e/ i/ o/ u/
-│   └── (excerptファイルは母音ラベルがないため除外、計3,462ファイル)
-└── __MACOSX/                     # macOSメタデータ (無視)
+└── FULL/                         # 2.7 GB
+    ├── female1/ ... female9/
+    └── male1/ ... male11/
+        ├── arpeggios/
+        │   ├── belt/
+        │   ├── breathy/
+        │   ├── fast_forte/ slow_forte/ fast_piano/ slow_piano/
+        │   ├── lip_trill/ straight/ vibrato/ vocal_fry/
+        │   └── ...
+        ├── scales/            # arpeggiosと同じ技法サブディレクトリ
+        ├── long_tones/
+        │   ├── forte/ pp/ straight/ trill/ trillo/
+        │   ├── inhaled/ messa/
+        │   └── ...
+        └── excerpts/
+            ├── spoken/ straight/ vibrato/
+            └── ...
 ```
 
 ## 歌手一覧
@@ -111,7 +106,7 @@ VocalSet1-2/
 | forte | フォルテの持続音 | 100 |
 | pp | ピアニッシモの持続音 | 100 |
 | trill | 2音間の急速な交替 | 195 |
-| trillo | 単音の急速な反復 | ※data_by_techniqueでは空 |
+| trillo | 単音の急速な反復 | — |
 | inhaled | 吸気発声 | 100 |
 | messa | メッサ・ディ・ヴォーチェ（クレッシェンド→デクレッシェンド） | 99 |
 
@@ -204,8 +199,7 @@ female4が最少 (156)、female2が最多 (189)。
 - **歌手ID欠落**: 32ファイルが歌手IDプレフィックスを持たない（例: `arpeggios_straight_a.wav`）
 - **ファイル名のtypo**: `arepggios`（arpeggiosの誤記）、`sow_forte`（slow_forteの誤記）
 - **重複マーカー**: `scales_f_slow_piano_u(1).wav` のような `(1)` 付きファイルが存在
-- **trilloの不整合**: `data_by_technique/trillo/` は空だが `data_by_singer/*/long_tones/trillo/` にはファイルが存在
-- **`__MACOSX/`**: macOSメタデータ（21MB）、無視すること
+- **`__MACOSX/`**: macOSメタデータ、無視すること
 
 ## SiFiGAN学習に向けた考慮事項
 
@@ -214,4 +208,3 @@ female4が最少 (156)、female2が最多 (189)。
 - **技法の選択**: クリーンなボコーダ学習にはstraight・vibratoが最も自然。inhaled・lip_trill・vocal_fryは非定常的で学習が難しい可能性がある
 - **音素の限界**: 5つのイタリア語母音のみ。子音・二重母音・閉母音なし
 - **データ量**: 歌手あたり約25-27分。単一話者モデルには少ないが、多話者モデルの一部としては十分
-- **推奨ビュー**: `data_by_singer/` が最も完全（3,613ファイル）で、学習用SCPファイル作成に最適
