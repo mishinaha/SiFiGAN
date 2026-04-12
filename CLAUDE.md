@@ -93,11 +93,18 @@ Key training defaults: 500k steps, batch 16, lr 2e-4 (Adam β=[0.5, 0.9]), eval 
 
 作者提供の事前学習モデルはLibriTTS-RとNUS-48Eで学習されているが、NUS-48Eはライセンスや入手方法が不明確で再現性に問題がある。そこでデータセットをLibriTTS-RとVocalSetに差し替えてフルスクラッチ学習を行う。
 
-### 学習環境
+### 学習環境 (pakari)
 
-- ホスト: `ssh pakari` でアクセス
-- 環境: packet.aiのコンテナ（RTX 6000 PRO搭載）
-- 安定性は不明だが利用可能
+- アクセス: `ssh pakari`
+- OS: Ubuntu 24.04 (コンテナ)
+- GPU: NVIDIA RTX PRO 6000 Blackwell Server Edition (VRAM 96GB)
+- CUDA: 13.0 / Driver 580.126.09
+- CPU: 96コア / RAM: 1.5TB
+- ルートファイルシステム: エフェメラル（overlay 3.5TB、再起動で消える）
+- 永続ストレージ: `/data/share159` (NFS, 98GB)
+  - `lambjets-experiments/` は別プロジェクトの残骸なので触らないこと
+- Python: 3.12.3（システム）、pip未設定 → セットアップが必要
+- 環境構築はvenvまたはcondaを `/data/share159` 配下に置くこと（エフェメラルなルートに置くと消える）
 
 ## Git運用
 
