@@ -88,3 +88,18 @@ Hydra config hierarchy in `sifigan/bin/config/`:
 - `data/`: dataset-specific (sample rate, hop size, dense factors)
 
 Key training defaults: 500k steps, batch 16, lr 2e-4 (Adam β=[0.5, 0.9]), eval every 2000 steps, checkpoint every 100k steps.
+
+## 現在の作業: フルスクラッチ学習
+
+作者提供の事前学習モデルはLibriTTS-RとNUS-48Eで学習されているが、NUS-48Eはライセンスや入手方法が不明確で再現性に問題がある。そこでデータセットをLibriTTS-RとVocalSetに差し替えてフルスクラッチ学習を行う。
+
+### 学習環境
+
+- ホスト: `ssh pakari` でアクセス
+- 環境: packet.aiのコンテナ（RTX 6000 PRO搭載）
+- 安定性は不明だが利用可能
+
+## Git運用
+
+- コミットメッセージは日本語で書くこと
+- こまめにコミットすること
