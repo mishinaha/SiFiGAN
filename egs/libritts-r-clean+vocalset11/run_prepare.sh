@@ -104,20 +104,31 @@ for f in "${LIBRITTS_FILES[@]}"; do
         rm -f "$filepath"
     fi
 
-    # wav/ ディレクトリへの再配置
+    # wav/ ディレクトリへの再配置 (Pythonで一括処理)
     subset_dir="$EPHEMERAL/LibriTTS_R/$subset"
-    for speaker_dir in "$subset_dir"/*/; do
-        speaker=$(basename "$speaker_dir")
-        wav_dir="$speaker_dir/wav"
-        if [ -d "$wav_dir" ] && [ "$(ls -A "$wav_dir" 2>/dev/null)" ]; then
-            continue  # 既に再配置済み
-        fi
-        mkdir -p "$wav_dir"
-        # 各チャプターディレクトリからWAVをシンボリックリンク
-        find "$speaker_dir" -maxdepth 2 -name '*.wav' -not -path '*/wav/*' | while read -r wavfile; do
-            ln -sf "$wavfile" "$wav_dir/$(basename "$wavfile")"
-        done
-    done
+    python3 -c "
+import os, pathlib
+subset_dir = '$subset_dir'
+count = 0
+for speaker in os.listdir(subset_dir):
+    speaker_path = os.path.join(subset_dir, speaker)
+    if not os.path.isdir(speaker_path):
+        continue
+    wav_dir = os.path.join(speaker_path, 'wav')
+    os.makedirs(wav_dir, exist_ok=True)
+    for chapter in os.listdir(speaker_path):
+        chapter_path = os.path.join(speaker_path, chapter)
+        if not os.path.isdir(chapter_path) or chapter == 'wav':
+            continue
+        for f in os.listdir(chapter_path):
+            if f.endswith('.wav'):
+                src = os.path.join(chapter_path, f)
+                dst = os.path.join(wav_dir, f)
+                if not os.path.exists(dst):
+                    os.symlink(src, dst)
+                    count += 1
+print(f'Created {count} symlinks')
+"
     log "RESTRUCTURE: $subset 完了"
 done
 
@@ -133,17 +144,26 @@ log "LibriTTS-R WAVファイル数 (wav/): $(find "$EPHEMERAL/LibriTTS_R" -path 
 #   VocalSet11/FULL/{singer}/wav/{file}.wav (シンボリックリンク)
 
 log "VocalSet WAV 再配置開始 (straight + vibrato のみ)"
-VOCALSET_ALL_SINGERS="female1 female2 female3 female4 female5 female6 female7 female8 female9 male1 male2 male3 male4 male5 male6 male7 male8 male9 male10 male11"
-for singer in $VOCALSET_ALL_SINGERS; do
-    wav_dir="/repo/VocalSet11/FULL/$singer/wav"
-    if [ -d "$wav_dir" ] && [ "$(ls -A "$wav_dir" 2>/dev/null)" ]; then
-        continue  # 既に再配置済み
-    fi
-    mkdir -p "$wav_dir"
-    find "/repo/VocalSet11/FULL/$singer" \( -path '*/straight/*' -o -path '*/vibrato/*' \) -name '*.wav' | while read -r wavfile; do
-        ln -sf "$wavfile" "$wav_dir/$(basename "$wavfile")"
-    done
-done
+python3 -c "
+import os
+base = '/repo/VocalSet11/FULL'
+singers = [f'female{i}' for i in range(1,10)] + [f'male{i}' for i in range(1,12)]
+count = 0
+for singer in singers:
+    singer_path = os.path.join(base, singer)
+    wav_dir = os.path.join(singer_path, 'wav')
+    os.makedirs(wav_dir, exist_ok=True)
+    for root, dirs, files in os.walk(singer_path):
+        if '/straight/' in root + '/' or '/vibrato/' in root + '/':
+            for f in files:
+                if f.endswith('.wav'):
+                    src = os.path.join(root, f)
+                    dst = os.path.join(wav_dir, f)
+                    if not os.path.exists(dst):
+                        os.symlink(src, dst)
+                        count += 1
+print(f'Created {count} symlinks')
+"
 log "VocalSet WAV 再配置完了"
 log "VocalSet WAVファイル数 (wav/): $(find /repo/VocalSet11/FULL -path '*/wav/*.wav' | wc -l)"
 
