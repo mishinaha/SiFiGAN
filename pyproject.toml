@@ -35,7 +35,7 @@ sifigan-anasyn = "sifigan.bin.anasyn:main"
 sifigan-param-count = "sifigan.bin.param_count:main"
 
 [build-system]
-requires = ["setuptools>=68.0", "numpy"]
+requires = ["setuptools>=68.0", "numpy", "pip"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
