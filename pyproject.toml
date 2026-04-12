@@ -1,0 +1,46 @@
+[project]
+name = "sifigan"
+version = "0.1"
+description = "Source-Filter HiFiGAN implementation"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    { name = "Reo Yoneyama", email = "yoneyama.reo@g.sp.m.is.nagoya-u.ac.jp" },
+]
+dependencies = [
+    "wheel",
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0",
+    "librosa>=0.8.0",
+    "soundfile>=0.10.2",
+    "tensorboardX>=2.2",
+    "matplotlib>=3.1.0",
+    "PyYAML>=3.12",
+    "tqdm>=4.26.1",
+    "h5py>=2.10.0",
+    "pyworld>=0.2.12",
+    "pysptk",
+    "sprocket-vc",
+    "protobuf>=3.20.0",
+    "hydra-core>=1.2",
+    "numpy",
+]
+
+[project.scripts]
+sifigan-extract-features = "sifigan.bin.extract_features:main"
+sifigan-compute-statistics = "sifigan.bin.compute_statistics:main"
+sifigan-train = "sifigan.bin.train:main"
+sifigan-decode = "sifigan.bin.decode:main"
+sifigan-anasyn = "sifigan.bin.anasyn:main"
+sifigan-param-count = "sifigan.bin.param_count:main"
+
+[build-system]
+requires = ["setuptools>=68.0", "numpy"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[tool.setuptools.packages.find]
+include = ["sifigan*"]
+
+[tool.uv]
+find-links = ["https://download.pytorch.org/whl/cu128"]
