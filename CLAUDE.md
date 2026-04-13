@@ -91,10 +91,12 @@ Hydra config hierarchy in `sifigan/bin/config/`:
 - Python環境: uv (`/repo/.local/bin/uv`) + .venv (`/repo/SiFiGAN/.venv/`, Python 3.11)
 - HDF5保存先: B2 Storage (`s3://pakari/`) にtar.gzでバックアップ、使用時にエフェメラルに展開
 
-### 未解決の課題
+### データ準備状況
 
-- VocalSetのWAVは44.1kHzだが、SiFiGANは24kHzを期待 → 事前リサンプリングが必要
-- VocalSet HDF5はリサンプリング後に再抽出・B2アップロード予定
+- LibriTTS-R HDF5: B2 Storage (`s3://pakari/libritts_r_hdf5.tar.gz`, 59.3 GiB, 160,267ファイル)
+- VocalSet HDF5: B2 Storage (`s3://pakari/vocalset11_hdf5.tar.gz`, 508 MiB, 616ファイル、24kHzリサンプリング済み)
+- 統計ファイル: 永続ストレージ `/repo/SiFiGAN/egs/.../data/stats/` に保存済み
+- 次のステップ: 統計量の再計算（VocalSet再抽出分を反映）→ 学習開始
 
 ## Git運用
 

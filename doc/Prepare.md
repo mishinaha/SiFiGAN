@@ -92,13 +92,11 @@ Python一括処理で33,232 (train-clean-100) + 116,462 (train-clean-360) + 5,73
 
 `extract_features.py:272` で `np.float` を使用していたが、numpy 2.0以降で削除されたためAttributeError。`np.float64` に修正済み (commit `a354202`)。
 
-### 2. VocalSetのサンプルレート不一致 (未解決)
+### 2. VocalSetのサンプルレート不一致 (解決済み)
 
-VocalSetのWAVファイルは44,100 Hzだが、特徴量抽出は24,000 Hzを期待。616件全てで「Resample before feature extraction」警告が発生。HDF5は616件生成されているが、サンプルレート不一致のまま処理された特徴量の品質は不明。
+VocalSetのWAVファイルは44,100 Hzだが、特徴量抽出は24,000 Hzを期待。初回抽出では616件全てで「Resample before feature extraction」警告が発生。
 
-**対策案:**
-- VocalSetのWAVを事前に24kHzにリサンプリングする（librosaやsoxで変換）
-- 変換後に特徴量を再抽出
+**解決:** soxrライブラリを使用して全616ファイルを44,100Hz→24,000Hzにリサンプリング。各歌手ディレクトリに`wav_24k/`を作成し、`wav/`のシンボリックリンクを24kHzファイルに差し替えた後、HDF5を削除して再抽出。再抽出時にResample警告は発生せず。
 
 ### 3. シンボリックリンク作成の速度 (修正済み)
 
@@ -117,7 +115,7 @@ HDF5をtar.gzにアーカイブしてB2 Storageに保存する方式を採用。
 | ファイル | B2パス | サイズ | 備考 |
 |---|---|---|---|
 | LibriTTS-R HDF5 | `s3://pakari/libritts_r_hdf5.tar.gz` | 59.3 GiB | 160,267個のh5ファイル |
-| VocalSet HDF5 | 未アップロード | — | リサンプリング後に再抽出・アップロード予定 |
+| VocalSet HDF5 | `s3://pakari/vocalset11_hdf5.tar.gz` | 508 MiB | 616個のh5ファイル（24kHzリサンプリング済み） |
 
 B2接続情報:
 - Endpoint: `s3.us-west-004.backblazeb2.com`
