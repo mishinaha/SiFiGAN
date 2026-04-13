@@ -269,7 +269,7 @@ def world_feature_extract(queue, wav_list, config):
 
         # load wavfile
         x, fs = sf.read(to_absolute_path(wav_name))
-        x = np.array(x, dtype=np.float)
+        x = np.array(x, dtype=np.float64)
 
         # check sampling frequency
         if not fs == config.sample_rate:
