@@ -149,7 +149,7 @@ class SignalGenerator:
         B, _, T = f0.size()
         vuv = interpolate((f0 > 0) * torch.ones_like(f0), T * self.hop_size)
         radious = (interpolate(f0.to(torch.float64), T * self.hop_size) / self.sample_rate) % 1
-        sine = vuv * torch.sin(torch.cumsum(radious, dim=2) * 2 * np.pi) * self.sine_amp
+        sine = vuv * torch.sin(torch.cumsum(radious, dim=2) * 2 * np.pi).to(f0.dtype) * self.sine_amp
         if self.noise_amp > 0:
             noise_amp = vuv * self.noise_amp + (1.0 - vuv) * self.noise_amp / 3.0
             noise = torch.randn((B, 1, T * self.hop_size), device=f0.device) * noise_amp
@@ -170,13 +170,14 @@ class SignalGenerator:
         """
         B, _, T = f0.size()
         vuv = interpolate((f0 > 0) * torch.ones_like(f0), T * self.hop_size)
+        orig_dtype = f0.dtype
         f0 = interpolate(f0.to(torch.float64), T * self.hop_size)
         sines = torch.zeros_like(f0, device=f0.device)
         harmonics = 5  # currently only fixed number of harmonics is supported
         for i in range(harmonics):
             radious = (f0 * (i + 1) / self.sample_rate) % 1
             sines += torch.sin(torch.cumsum(radious, dim=2) * 2 * np.pi)
-        sines = self.sine_amp * sines * vuv / harmonics
+        sines = (self.sine_amp * sines * vuv / harmonics).to(orig_dtype)
         if self.noise_amp > 0:
             noise_amp = vuv * self.noise_amp + (1.0 - vuv) * self.noise_amp / 3.0
             noise = torch.randn((B, 1, T * self.hop_size), device=f0.device) * noise_amp
