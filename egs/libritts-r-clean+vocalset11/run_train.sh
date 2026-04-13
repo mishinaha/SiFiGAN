@@ -43,8 +43,8 @@ log "disk (ephemeral):  $(df -h /tmp | tail -1)"
 
 # データ存在チェック
 log "=== データ存在チェック ==="
-LIBRITTS_H5=$(find "$EGSDIR/LibriTTS_R" -name '*.h5' 2>/dev/null | wc -l)
-VOCALSET_H5=$(find "$EGSDIR/VocalSet11" -name '*.h5' 2>/dev/null | wc -l)
+LIBRITTS_H5=$(find -L "$EGSDIR/LibriTTS_R" -name '*.h5' 2>/dev/null | wc -l)
+VOCALSET_H5=$(find -L "$EGSDIR/VocalSet11" -name '*.h5' 2>/dev/null | wc -l)
 STATS="$EGSDIR/data/stats/libritts_r_clean+vocalset11_train_no_dev.joblib"
 log "LibriTTS-R HDF5: $LIBRITTS_H5 ファイル"
 log "VocalSet HDF5: $VOCALSET_H5 ファイル"
