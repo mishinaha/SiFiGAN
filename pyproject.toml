@@ -4,14 +4,15 @@ version = "0.1"
 description = "Source-Filter HiFiGAN implementation"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.10"
+requires-python = ">=3.13"
 authors = [
     { name = "Reo Yoneyama", email = "yoneyama.reo@g.sp.m.is.nagoya-u.ac.jp" },
 ]
 dependencies = [
     "wheel",
-    "torch>=2.0.0",
-    "torchaudio>=2.0.0",
+    "torch==2.9.1+cu130",
+    "flash_attn @ https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.7.11/flash_attn-2.8.3+cu131torch2.9-cp313-cp313-linux_x86_64.whl",
+    "torchaudio==2.9.1+cu130",
     "librosa>=0.8.0",
     "soundfile>=0.10.2",
     "tensorboardX>=2.2",
@@ -35,11 +36,20 @@ sifigan-anasyn = "sifigan.bin.anasyn:main"
 sifigan-param-count = "sifigan.bin.param_count:main"
 
 [build-system]
-requires = ["setuptools>=68.0", "numpy", "pip"]
+requires = ["setuptools>=77.0", "numpy", "pip"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["sifigan*"]
 
 [tool.uv]
-find-links = ["https://download.pytorch.org/whl/cu128"]
+find-links = ["https://download.pytorch.org/whl/cu130"]
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu130" }]
+torchaudio = [{ index = "pytorch-cu130" }]
