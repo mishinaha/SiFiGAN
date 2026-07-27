@@ -67,6 +67,57 @@ def convert_continuos_f0(f0):
     return uv, cont_f0
 
 
+def reject_f0_octave_drop(f0, window=20, threshold_semitones=6.0, min_voiced=5):
+    """Reject harvest octave-down errors (doc/260728-1-report.md Fix C).
+
+    Voiced frames whose F0 is more than threshold_semitones below the local
+    voiced median are treated as unvoiced. Local medians are computed on the
+    original contour so consecutive errors cannot mask each other.
+    """
+    ratio = 2.0 ** (-threshold_semitones / 12.0)
+    corrected = f0.copy()
+    rejected = 0
+    for i in np.where(f0 > 0)[0]:
+        local = f0[max(0, i - window) : i + window + 1]
+        local = local[local > 0]
+        if len(local) >= min_voiced and f0[i] < np.median(local) * ratio:
+            corrected[i] = 0.0
+            rejected += 1
+    return corrected, rejected
+
+
+def repair_saturated_ap(ap, f0, threshold=0.999):
+    """Repair D4C LoveTrain mis-fires (doc/260728-1-report.md Fix A).
+
+    D4C's binary LoveTrain decision floods all bins of a frame with 1 - 1e-12
+    ("pure noise") and mis-fires on high-pitched voiced frames, which makes the
+    vocoder synthesize noise. Such frames are replaced by log-domain linear
+    interpolation between the nearest non-saturated voiced frames. Unvoiced
+    frames are saturated by design and left untouched.
+    """
+    saturated = ap.min(axis=1) > threshold
+    voiced = f0 > 0
+    bad_idx = np.where(voiced & saturated)[0]
+    good_idx = np.where(voiced & ~saturated)[0]
+    if len(bad_idx) == 0 or len(good_idx) == 0:
+        return ap, 0
+    repaired = ap.copy()
+    log_ap = np.log(np.clip(ap, 1e-12, None))
+    for i in bad_idx:
+        prev_good = good_idx[good_idx < i]
+        next_good = good_idx[good_idx > i]
+        if len(prev_good) and len(next_good):
+            p, n = prev_good[-1], next_good[0]
+            w = (i - p) / (n - p)
+            log_interp = (1.0 - w) * log_ap[p] + w * log_ap[n]
+        elif len(prev_good):
+            log_interp = log_ap[prev_good[-1]]
+        else:
+            log_interp = log_ap[next_good[0]]
+        repaired[i] = np.minimum(np.exp(log_interp), 1.0)
+    return repaired, len(bad_idx)
+
+
 @torch.no_grad()
 @hydra.main(version_base=None, config_path="config", config_name="anasyn")
 def main(config: DictConfig) -> None:
@@ -124,11 +175,28 @@ def main(config: DictConfig) -> None:
         )
         sp = pw.cheaptrick(x, f0_, t, config.sample_rate)
         ap = pw.d4c(x, f0_, t, config.sample_rate)
+        if config.correct_ap_saturation:
+            ap, n_repaired = repair_saturated_ap(ap, f0_, threshold=config.ap_saturation_threshold)
+            logger.info(f"Fix A: repaired {n_repaired} voiced frames with saturated aperiodicity.")
         mcep = pysptk.sp2mc(sp, order=config.mcep_dim, alpha=ALPHA[config.sample_rate])
         mcap = pysptk.sp2mc(ap, order=config.mcap_dim, alpha=ALPHA[config.sample_rate])
         bap = pw.code_aperiodicity(ap, config.sample_rate)
+        if config.correct_bap_clip:
+            bap = np.clip(
+                bap,
+                scaler["bap"].mean_ - config.bap_clip_z * scaler["bap"].scale_,
+                scaler["bap"].mean_ + config.bap_clip_z * scaler["bap"].scale_,
+            )
+            logger.info(f"Fix D: clipped bap to |z| <= {config.bap_clip_z}.")
 
         # prepare f0 related features
+        if config.correct_f0_octave_drop:
+            f0_, n_rejected = reject_f0_octave_drop(
+                f0_,
+                window=config.octave_drop_window,
+                threshold_semitones=config.octave_drop_semitones,
+            )
+            logger.info(f"Fix C: rejected {n_rejected} octave-down F0 frames.")
         uv, cf0_ = convert_continuos_f0(f0_)
         uv = uv[:, np.newaxis]  # (T, 1)
         f0_ = f0_[:, np.newaxis]  # (T, 1)

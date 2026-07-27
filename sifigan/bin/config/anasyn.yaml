@@ -35,3 +35,12 @@ sine_amp: 0.1                  # Sine amplitude.
 noise_amp: 0.003               # Noise amplitude.
 sine_f0_type: "cf0"            # F0 type for sine signal ("f0" or "cf0").
 signal_types: ["sine"]         # List of input signal types.
+
+# Rule-based corrections for WORLD analysis outputs (doc/260728-1-report.md).
+correct_f0_octave_drop: false  # Fix C: reject harvest octave-down errors.
+octave_drop_window: 20         # +/- frames for the local voiced F0 median.
+octave_drop_semitones: 6.0     # Reject voiced frames this far below the local median.
+correct_ap_saturation: false   # Fix A: repair D4C LoveTrain-saturated voiced frames.
+ap_saturation_threshold: 0.999 # Frame is saturated if its minimum aperiodicity exceeds this.
+correct_bap_clip: false        # Fix D: clip bap to the training statistics.
+bap_clip_z: 4.0                # Clip range in training-set standard deviations.
