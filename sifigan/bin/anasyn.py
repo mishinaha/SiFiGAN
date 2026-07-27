@@ -26,6 +26,7 @@ from hydra.utils import instantiate, to_absolute_path
 from joblib import load
 from omegaconf import DictConfig
 from scipy.interpolate import interp1d
+from scipy.signal import butter, filtfilt
 from sifigan.utils.features import SignalGenerator, dilated_factor
 
 logger = getLogger(__name__)
@@ -67,23 +68,130 @@ def convert_continuos_f0(f0):
     return uv, cont_f0
 
 
-def reject_f0_octave_drop(f0, window=20, threshold_semitones=6.0, min_voiced=5):
-    """Reject harvest octave-down errors (doc/260728-1-report.md Fix C).
+def highpass_analysis(x, sample_rate, cutoff_hz=70.0, order=4):
+    """High-pass the analysis signal (doc/260728-1-report.md Fix E).
 
-    Voiced frames whose F0 is more than threshold_semitones below the local
-    voiced median are treated as unvoiced. Local medians are computed on the
-    original contour so consecutive errors cannot mask each other.
+    Sub-60 Hz rumble in the input makes WORLD harvest undershoot the true F0
+    (e.g. tracking 216 Hz against a true 390 Hz), which the vocoder then
+    renders as noise. Filtering only the analysis signal removes the failure;
+    the synthesis conditioning path is unaffected by design.
     """
-    ratio = 2.0 ** (-threshold_semitones / 12.0)
+    b, a = butter(order, cutoff_hz / (sample_rate / 2), btype="high")
+    return np.ascontiguousarray(filtfilt(b, a, x))
+
+
+_COMB_CACHE = {}
+
+
+def _comb_grid(sample_rate, n_fft=2048, fmin=100.0, fmax=840.0, n_grid=300, band_hz=4000.0):
+    key = (sample_rate, n_fft, fmin, fmax, n_grid, band_hz)
+    if key not in _COMB_CACHE:
+        freq = np.fft.rfftfreq(n_fft, 1.0 / sample_rate)
+        band = freq < band_hz
+        grid = fmin * (fmax / fmin) ** (np.arange(n_grid) / (n_grid - 1))
+        mh, mn = [], []
+        for f in grid:
+            hw = max(f * 0.10, sample_rate / n_fft * 1.5)
+            harm = np.zeros(len(freq), dtype=bool)
+            k = 1
+            while k * f < sample_rate / 2:
+                harm |= np.abs(freq - k * f) <= hw
+                k += 1
+            mh.append((band & harm) / max((band & harm).sum(), 1))
+            mn.append((band & ~harm) / max((band & ~harm).sum(), 1))
+        _COMB_CACHE[key] = (grid, np.array(mh).T, np.array(mn).T, n_fft)
+    return _COMB_CACHE[key]
+
+
+def _make_ncc(x, hop_size, sample_rate, win=1024, fmin=100.0, fmax=920.0):
+    """Per-frame normalized autocorrelation at a pitch lag, computed lazily."""
+    lmin = int(round(sample_rate / fmax))
+    lmax = int(round(sample_rate / fmin))
+    xp = np.pad(np.asarray(x, np.float64), (win // 2, win + lmax), mode="constant")
+    cache = {}
+
+    def ncc_at(i, f):
+        if f <= 0:
+            return np.nan
+        lag = int(round(sample_rate / f))
+        if not (lmin <= lag <= lmax):
+            return np.nan
+        if (i, lag) not in cache:
+            seg = xp[i * hop_size : i * hop_size + win + lmax]
+            s1 = seg[:win] - seg[:win].mean()
+            s2 = seg[lag : lag + win] - seg[lag : lag + win].mean()
+            e1, e2 = np.dot(s1, s1), np.dot(s2, s2)
+            cache[(i, lag)] = np.dot(s1, s2) / np.sqrt(e1 * e2) if e1 > 1e-18 and e2 > 1e-18 else 0.0
+        return cache[(i, lag)]
+
+    return ncc_at
+
+
+def correct_f0_undershoot(
+    x,
+    f0,
+    sample_rate,
+    hop_size,
+    ratio_min=1.15,
+    ratio_max=1.9,
+    ncc_min=0.6,
+    ncc_margin=0.2,
+    hnr_min_db=3.0,
+    grow_window=20,
+    grow_semitones=1.0,
+    grow_ncc=0.5,
+    grow_margin=0.15,
+    max_grow=20,
+):
+    """Replace reference-verified undershot F0 frames (doc/260728-1-report.md Fix G).
+
+    A comb-HNR grid search over the analysis signal provides a pitch reference
+    that is independent of harvest. Voiced frames whose reference lies
+    ratio_min..ratio_max above harvest, and whose reference lag also wins the
+    frame's normalized autocorrelation by ncc_margin, get the reference value
+    (never zero, unlike the retired octave-drop rejection). Seeds then extend
+    into neighbours that sit at least grow_semitones below the repaired local
+    trend while the trend lag keeps winning the autocorrelation.
+    """
+    n_frames = len(f0)
+    grid, mh, mn, n_fft = _comb_grid(sample_rate)
+    xp = np.pad(np.asarray(x, np.float64), (n_fft // 2, n_fft), mode="constant")
+    idx = np.minimum(np.arange(n_fft)[None, :] + (np.arange(n_frames) * hop_size)[:, None], len(xp) - 1)
+    power = np.abs(np.fft.rfft(xp[idx] * np.hanning(n_fft), axis=1)) ** 2
+    hnr = 10 * np.log10(np.maximum(power @ mh, 1e-30) / np.maximum(power @ mn, 1e-30))
+    best = np.argmax(hnr, axis=1)
+    f_ref = np.where(hnr[np.arange(n_frames), best] > hnr_min_db, grid[best], 0.0)
+    ncc_at = _make_ncc(x, hop_size, sample_rate)
+
     corrected = f0.copy()
-    rejected = 0
+    seeds = []
     for i in np.where(f0 > 0)[0]:
-        local = f0[max(0, i - window) : i + window + 1]
-        local = local[local > 0]
-        if len(local) >= min_voiced and f0[i] < np.median(local) * ratio:
-            corrected[i] = 0.0
-            rejected += 1
-    return corrected, rejected
+        if f_ref[i] <= 0 or not (ratio_min <= f_ref[i] / f0[i] <= ratio_max):
+            continue
+        nh, nr = ncc_at(i, f0[i]), ncc_at(i, f_ref[i])
+        if nr == nr and nr > ncc_min and (nh != nh or nr > nh + ncc_margin):
+            corrected[i] = f_ref[i]
+            seeds.append(i)
+    grown = 0
+    for i in seeds:
+        for step in (-1, 1):
+            j, n = i + step, 0
+            while 0 <= j < n_frames and f0[j] > 0 and n < max_grow:
+                local = corrected[max(0, j - grow_window) : j + grow_window + 1]
+                local = local[local > 0]
+                if len(local) < 5:
+                    break
+                trend = np.percentile(local, 75)
+                if 12 * np.log2(trend / f0[j]) < grow_semitones:
+                    break
+                nh, nt = ncc_at(j, f0[j]), ncc_at(j, trend)
+                if not (nt == nt and nt > grow_ncc and (nh != nh or nt > nh + grow_margin)):
+                    break
+                corrected[j] = trend
+                grown += 1
+                n += 1
+                j += step
+    return corrected, len(seeds), grown
 
 
 def repair_saturated_ap(ap, f0, threshold=0.999):
@@ -166,6 +274,8 @@ def main(config: DictConfig) -> None:
         x, sr = sf.read(to_absolute_path(wav_path))
         if sr != config.sample_rate:
             x = librosa.resample(x, orig_sr=sr, target_sr=config.sample_rate)
+        if config.correct_analysis_hp:
+            x = highpass_analysis(x, config.sample_rate, cutoff_hz=config.analysis_hp_hz)
         f0_, t = pw.harvest(
             x,
             config.sample_rate,
@@ -190,13 +300,15 @@ def main(config: DictConfig) -> None:
             logger.info(f"Fix D: clipped bap to |z| <= {config.bap_clip_z}.")
 
         # prepare f0 related features
-        if config.correct_f0_octave_drop:
-            f0_, n_rejected = reject_f0_octave_drop(
+        if config.correct_f0_undershoot:
+            f0_, n_seed, n_grown = correct_f0_undershoot(
+                x,
                 f0_,
-                window=config.octave_drop_window,
-                threshold_semitones=config.octave_drop_semitones,
+                config.sample_rate,
+                int(config.sample_rate * config.frame_period * 0.001),
+                ratio_max=config.undershoot_ratio_max,
             )
-            logger.info(f"Fix C: rejected {n_rejected} octave-down F0 frames.")
+            logger.info(f"Fix G: replaced {n_seed} undershot F0 frames (+{n_grown} extended).")
         uv, cf0_ = convert_continuos_f0(f0_)
         uv = uv[:, np.newaxis]  # (T, 1)
         f0_ = f0_[:, np.newaxis]  # (T, 1)
