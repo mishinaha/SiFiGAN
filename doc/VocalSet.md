@@ -1,14 +1,16 @@
 # VocalSet
 
-歌唱音声データセット。20名の歌手（女性9名・男性11名）による17種類の歌唱技法を収録。
+VocalSet は歌唱音声のデータセットで、20 名の歌手（女性 9 名、男性 11 名）が 17 種類の歌唱技法で歌った音声を収録している。
 
-- 入手元: https://zenodo.org/records/1203819 (VocalSet 1.1)
-- 展開先 (pakari): `/repo/VocalSet11/FULL/`
-- ライセンス: CC BY 4.0 (Zenodoページに記載)
+- 入手元：https://zenodo.org/records/1203819 （VocalSet 1.1）
+- 展開先（pakari）：`/repo/VocalSet11/FULL/`
+- ライセンス：CC BY 4.0（Zenodo のページに記載）
 
 ### バージョンについて
 
-VocalSet 1.2 (https://zenodo.org/records/1442513) も存在するが、音声ファイルは1.1と完全に同一（md5sumで確認済み）。1.2はdata_by_singer / data_by_technique / data_by_vowelの3つのビューとして同じファイルを3重コピーしているだけで、新規音声はゼロ。1.1の `FULL/` ディレクトリ (2.7GB) のみで十分。
+VocalSet 1.2（https://zenodo.org/records/1442513 ）もあるが、音声ファイルは 1.1 とまったく同じである（md5sum で確認した）。
+1.2 は同じファイルを data_by_singer、data_by_technique、data_by_vowel の 3 つのビューとして 3 重にコピーしているだけで、新しい音声は 1 つもない。
+したがって、1.1 の `FULL/` ディレクトリ（2.7GB）だけで足りる。
 
 ## 基本統計
 
@@ -80,11 +82,12 @@ VocalSet11/
 | m10 | バスバリトン | **test** |
 | m11 | テノール | train |
 
-学習/テスト分割: 15名 (train) / 5名 (test)。歌手単位の分割なので話者リークなし。
+学習用とテスト用の分割は 15 名（train）と 5 名（test）である。
+歌手単位で分割しているので、同じ話者が学習とテストの両方に入ること（話者リーク）はない。
 
 ## 歌唱技法 (17種)
 
-### arpeggios・scales共通 (10技法)
+### arpeggios と scales に共通 (10技法)
 
 | 技法 | 説明 | ファイル数 |
 |---|---|---|
@@ -99,7 +102,7 @@ VocalSet11/
 | vibrato | ビブラート | 260 |
 | vocal_fry | ボーカルフライ（低音域のきしみ声） | 198 |
 
-### long_tones専用 (5技法)
+### long_tones 専用 (5技法)
 
 | 技法 | 説明 | ファイル数 |
 |---|---|---|
@@ -110,7 +113,7 @@ VocalSet11/
 | inhaled | 吸気発声 | 100 |
 | messa | メッサ・ディ・ヴォーチェ（クレッシェンド→デクレッシェンド） | 99 |
 
-### excerpts専用 (1技法)
+### excerpts 専用 (1技法)
 
 | 技法 | 説明 | ファイル数 |
 |---|---|---|
@@ -127,7 +130,7 @@ VocalSet11/
 
 ## 母音
 
-5つのイタリア語母音。ほぼ均等に分布:
+母音はイタリア語の 5 母音で、ファイル数はほぼ均等である。
 
 | 母音 | ファイル数 |
 |---|---|
@@ -137,26 +140,26 @@ VocalSet11/
 | o | 694 |
 | u | 693 |
 
-excerptファイルは母音ラベルを持たない。
+excerpts のファイルには母音ラベルがない。
 
 ## ファイル命名規則
 
-### arpeggios・scales (テンポ+ダイナミクス系)
+### arpeggios と scales（テンポとダイナミクスの組み合わせ）
 
 ```
 {singer}_{vocalise}_{c|f}_{tempo}_{dynamic}_{vowel}.wav
 ```
 
-- `c` = ascending (do→), `f` = descending (→do)
-- 例: `m2_scales_c_slow_forte_a.wav` = male2, 音階, 上行, 遅い, フォルテ, 母音a
+- `c` は ascending（do→）、`f` は descending（→do）を表す。
+- 例：`m2_scales_c_slow_forte_a.wav` は male2、音階、上行、遅い、フォルテ、母音 a を表す。
 
-### arpeggios・scales (技法系: belt, breathy, lip_trill, straight, vibrato, vocal_fry)
+### arpeggios と scales（技法：belt, breathy, lip_trill, straight, vibrato, vocal_fry）
 
 ```
 {singer}_{vocalise}_{technique}_{vowel}.wav
 ```
 
-- 例: `f3_arpeggios_vocal_fry_a.wav` = female3, アルペジオ, ボーカルフライ, 母音a
+- 例：`f3_arpeggios_vocal_fry_a.wav` は female3、アルペジオ、ボーカルフライ、母音 a を表す。
 
 ### long_tones
 
@@ -164,7 +167,7 @@ excerptファイルは母音ラベルを持たない。
 {singer}_long_{technique}_{vowel}.wav
 ```
 
-- 例: `m2_long_trillo_e.wav` = male2, 持続音, トリッロ, 母音e
+- 例：`m2_long_trillo_e.wav` は male2、持続音、トリッロ、母音 e を表す。
 
 ### excerpts
 
@@ -172,11 +175,11 @@ excerptファイルは母音ラベルを持たない。
 {singer}_{song}_{technique}.wav
 ```
 
-- 例: `f1_caro_vibrato.wav` = female1, Caro mio ben, ビブラート
+- 例：`f1_caro_vibrato.wav` は female1、Caro mio ben、ビブラートを表す。
 
-歌手IDの略記: f1-f9 = female1-female9, m1-m11 = male1-male11。
+歌手 ID は略記で、f1〜f9 が female1〜female9、m1〜m11 が male1〜male11 に対応する。
 
-## 歌手あたりのファイル数
+## 歌手ごとのファイル数
 
 | 歌手 | ファイル数 | 歌手 | ファイル数 |
 |---|---|---|---|
@@ -192,19 +195,19 @@ excerptファイルは母音ラベルを持たない。
 | | | male10 | 182 |
 | | | male11 | 182 |
 
-female4が最少 (156)、female2が最多 (189)。
+最も少ないのは female4（156）、最も多いのは female2（189）である。
 
 ## データ品質の注意点
 
-- **歌手ID欠落**: 32ファイルが歌手IDプレフィックスを持たない（例: `arpeggios_straight_a.wav`）
-- **ファイル名のtypo**: `arepggios`（arpeggiosの誤記）、`sow_forte`（slow_forteの誤記）
-- **重複マーカー**: `scales_f_slow_piano_u(1).wav` のような `(1)` 付きファイルが存在
-- **`__MACOSX/`**: macOSメタデータ、無視すること
+- **歌手 ID の欠落**：32 ファイルが歌手 ID のプレフィックスを持たない（例：`arpeggios_straight_a.wav`）。
+- **ファイル名の誤記**：`arepggios`（arpeggios の誤記）、`sow_forte`（slow_forte の誤記）がある。
+- **重複マーカー**：`scales_f_slow_piano_u(1).wav` のように `(1)` が付いたファイルがある。
+- **`__MACOSX/`**：macOS のメタデータなので無視する。
 
-## SiFiGAN学習に向けた考慮事項
+## SiFiGAN の学習に使うときの考慮事項
 
-- **リサンプリング必要**: SiFiGANのデフォルト設定は24kHzだが、VocalSetは44.1kHz
-- **ピッチ多様性**: バスからソプラノ、カウンターテノールまで広いF0範囲をカバー。SiFiGANのF0依存モデルに適している
-- **技法の選択**: クリーンなボコーダ学習にはstraight・vibratoが最も自然。inhaled・lip_trill・vocal_fryは非定常的で学習が難しい可能性がある
-- **音素の限界**: 5つのイタリア語母音のみ。子音・二重母音・閉母音なし
-- **データ量**: 歌手あたり約25-27分。単一話者モデルには少ないが、多話者モデルの一部としては十分
+- **リサンプリングが必要**：SiFiGAN のデフォルト設定は 24kHz だが、VocalSet は 44.1kHz である。
+- **ピッチの多様性**：バスからソプラノ、カウンターテノールまで、広い F0 範囲をカバーしている。F0 に依存する SiFiGAN のモデルの学習に向いている。
+- **技法の選び方**：クリーンなボコーダを学習するには、straight と vibrato が最も自然である。inhaled、lip_trill、vocal_fry は非定常的な発声なので、学習が難しくなる可能性がある。
+- **音素の限界**：イタリア語の 5 母音しかなく、子音、二重母音、閉母音は含まれない。
+- **データ量**：歌手あたり約 25〜27 分である。単一話者モデルには少ないが、多話者モデルの学習データの一部としては十分である。

@@ -1,12 +1,12 @@
 # データ準備作業記録
 
-LibriTTS-R + VocalSet11 のフルスクラッチ学習用データ準備の記録。
+LibriTTS-R と VocalSet11 を使ったフルスクラッチ学習に向けて、データを準備したときの記録である。
 
 ## 実行環境
 
-- マシン: `ssh pakari` (packet.ai RTX PRO 6000 Blackwell, 96コア, 1.5TB RAM)
-- Git commit (実行時): `a354202` (np.float64修正後)
-- ログ: `/repo/logs/prepare.log`
+- マシン：`ssh pakari`（packet.ai、RTX PRO 6000 Blackwell、96 コア、1.5TB RAM）
+- 実行時の Git commit：`a354202`（np.float64 修正後）
+- ログ：`/repo/logs/prepare.log`
 
 ## 実行したコマンド
 
@@ -23,7 +23,7 @@ bash run_prepare.sh >> /repo/logs/prepare.log 2>&1
 # train_no_dev, dev, eval の順に特徴量抽出 + 統計量計算
 ```
 
-## LibriTTS-R ダウンロード結果
+## LibriTTS-R のダウンロード結果
 
 | ファイル | サイズ | MD5 |
 |---|---|---|
@@ -32,27 +32,29 @@ bash run_prepare.sh >> /repo/logs/prepare.log 2>&1
 | dev_clean.tar.gz | 1.3 GB | `2c1f5312914890634cc2d15783032ff3` |
 | test_clean.tar.gz | 1.3 GB | `4d373d453eb96c0691e598061bbafab7` |
 
-ダウンロード元: `https://openslr.trmal.net/resources/141/`
+ダウンロード元は `https://openslr.trmal.net/resources/141/` である。
 
-## ディレクトリ再配置
+## ディレクトリの再配置
 
-SiFiGANの`extract_features.py`は`path_replace()`で`in_dir="wav"`→`out_dir="hdf5"`の文字列置換を行うため、WAVファイルが`{speaker}/wav/{file}.wav`というパスに配置されている必要がある。
+SiFiGAN の `extract_features.py` は、`path_replace()` で `in_dir="wav"` を `out_dir="hdf5"` に文字列置換して出力先を決める。
+そのため、WAV ファイルを `{speaker}/wav/{file}.wav` というパスに置いておく必要がある。
 
 ### LibriTTS-R
 
-元の構造: `LibriTTS_R/{subset}/{speaker}/{chapter}/{file}.wav`
-再配置後: `LibriTTS_R/{subset}/{speaker}/wav/{file}.wav` (シンボリックリンク)
+- 元の構造：`LibriTTS_R/{subset}/{speaker}/{chapter}/{file}.wav`
+- 再配置後：`LibriTTS_R/{subset}/{speaker}/wav/{file}.wav`（シンボリックリンク）
 
-Python一括処理で33,232 (train-clean-100) + 116,462 (train-clean-360) + 5,736 (dev-clean) + 4,837 (test-clean) = 160,267個のシンボリックリンクを作成。再配置は各サブセットで約5-11秒。
+Python の一括処理で、33,232（train-clean-100）+ 116,462（train-clean-360）+ 5,736（dev-clean）+ 4,837（test-clean）= 160,267 個のシンボリックリンクを作成した。
+再配置にかかった時間は各サブセットで約 5〜11 秒である。
 
 ### VocalSet
 
-元の構造: `VocalSet11/FULL/{singer}/{exercise}/{technique}/{file}.wav`
-再配置後: `VocalSet11/FULL/{singer}/wav/{file}.wav` (シンボリックリンク、straight + vibratoのみ)
+- 元の構造：`VocalSet11/FULL/{singer}/{exercise}/{technique}/{file}.wav`
+- 再配置後：`VocalSet11/FULL/{singer}/wav/{file}.wav`（シンボリックリンク、straight と vibrato のみ）
 
-616個のシンボリックリンクを作成。
+616 個のシンボリックリンクを作成した。
 
-## SCPファイル
+## SCP ファイル
 
 | 分割 | ファイル数 | 内容 |
 |---|---|---|
@@ -62,7 +64,7 @@ Python一括処理で33,232 (train-clean-100) + 116,462 (train-clean-360) + 5,73
 
 ## 特徴量抽出
 
-パラメータ: `minf0=60 maxf0=1000 sample_rate=24000`
+パラメータは `minf0=60 maxf0=1000 sample_rate=24000` である。
 
 ### 所要時間
 
@@ -73,9 +75,10 @@ Python一括処理で33,232 (train-clean-100) + 116,462 (train-clean-360) + 5,73
 | eval (4,989) | 10:48 UTC | 11:12 UTC | 約25分 |
 | 統計量計算 | 11:12 UTC | 11:27 UTC | 約15分 |
 
-処理速度: 約256 HDF5/分（10プロセス並列）。総所要時間: 約11時間20分。
+10 プロセス並列で、処理速度は約 256 HDF5/分だった。
+総所要時間は約 11 時間 20 分である。
 
-### HDF5生成数
+### HDF5 の生成数
 
 | ソース | 生成数 | 期待数 | 備考 |
 |---|---|---|---|
@@ -84,44 +87,57 @@ Python一括処理で33,232 (train-clean-100) + 116,462 (train-clean-360) + 5,73
 
 ### 統計ファイル
 
-`data/stats/libritts_r_clean+vocalset11_train_no_dev.joblib` (2.5KB) を生成。
+`data/stats/libritts_r_clean+vocalset11_train_no_dev.joblib`（2.5KB）を生成した。
 
-## 発見された問題
+## 見つかった問題
 
-### 1. np.float 削除 (修正済み)
+### 1. np.float の削除（修正済み）
 
-`extract_features.py:272` で `np.float` を使用していたが、numpy 2.0以降で削除されたためAttributeError。`np.float64` に修正済み (commit `a354202`)。
+`extract_features.py:272` は `np.float` を使っていた。
+numpy 2.0 以降では `np.float` が削除されているため、ここで AttributeError が発生した。
+`np.float64` に修正した（commit `a354202`）。
 
-### 2. VocalSetのサンプルレート不一致 (解決済み)
+### 2. VocalSet のサンプルレート不一致（解決済み）
 
-VocalSetのWAVファイルは44,100 Hzだが、特徴量抽出は24,000 Hzを期待。初回抽出では616件全てで「Resample before feature extraction」警告が発生。
+VocalSet の WAV ファイルは 44,100 Hz だが、特徴量抽出は 24,000 Hz の入力を前提としている。
+そのため初回の抽出では、616 件すべてで「Resample before feature extraction」警告が出た。
 
-**解決:** soxrライブラリを使用して全616ファイルを44,100Hz→24,000Hzにリサンプリング。各歌手ディレクトリに`wav_24k/`を作成し、`wav/`のシンボリックリンクを24kHzファイルに差し替えた後、HDF5を削除して再抽出。再抽出時にResample警告は発生せず。
+**解決**：soxr ライブラリで 616 ファイルすべてを 44,100 Hz から 24,000 Hz にリサンプリングした。
+手順は次のとおりである。
 
-### 3. シンボリックリンク作成の速度 (修正済み)
+1. 各歌手ディレクトリに `wav_24k/` を作り、リサンプリング後のファイルを置く。
+2. `wav/` のシンボリックリンクを 24kHz のファイルに差し替える。
+3. HDF5 を削除して特徴量を再抽出する。
 
-初回実行ではbashのfind+while+lnループが極端に遅かった（10万ファイルで20分以上）。Pythonのos.symlinkに書き換えて5秒に短縮 (commit `5253cfb`)。
+再抽出では Resample 警告は出なかった。
+
+### 3. シンボリックリンク作成の速度（修正済み）
+
+初回の実行では、bash の find+while+ln ループが極端に遅かった（10 万ファイルで 20 分以上）。
+Python の os.symlink を使う処理に書き換え、5 秒に短縮した（commit `5253cfb`）。
 
 ## ストレージ配置
 
-### NFS小ファイル問題
+### NFS の小ファイル問題
 
-LibriTTS-R HDF5は160,267個の小ファイル（実データ計59.3GB）。NFSの永続ストレージに直接配置すると、ブロック割り当てにより66GB以上を消費し、98GBの容量を逼迫する。
+LibriTTS-R の HDF5 は 160,267 個の小さなファイルからなり、実データは合計 59.3GB である。
+これを NFS の永続ストレージに直接置くと、ブロック単位の割り当てのために 66GB 以上を消費し、容量 98GB のストレージを圧迫する。
 
 ### B2 Storage (Backblaze)
 
-HDF5をtar.gzにアーカイブしてB2 Storageに保存する方式を採用。
+そこで、HDF5 を tar.gz にまとめて B2 Storage に保存する方式を採った。
 
 | ファイル | B2パス | サイズ | 備考 |
 |---|---|---|---|
 | LibriTTS-R HDF5 | `s3://pakari/libritts_r_hdf5.tar.gz` | 59.3 GiB | 160,267個のh5ファイル |
 | VocalSet HDF5 | `s3://pakari/vocalset11_hdf5.tar.gz` | 508 MiB | 616個のh5ファイル（24kHzリサンプリング済み） |
 
-B2接続情報:
-- Endpoint: `s3.us-west-004.backblazeb2.com`
-- Bucket: `pakari`
-- Key ID: `***REMOVED_B2_KEY_ID***`
-- アクセスにはaws CLIを使用（`uv tool install awscli`で導入）
+B2 の接続情報は次のとおりである。
+
+- Endpoint：`s3.us-west-004.backblazeb2.com`
+- Bucket：`pakari`
+- Key ID：`***REMOVED_B2_KEY_ID***`
+- アクセスには aws CLI を使う（`uv tool install awscli` で導入する）。
 
 ### コンテナ再起動時の復元手順
 
