@@ -136,7 +136,7 @@ B2 の接続情報は次のとおりである。
 
 - Endpoint：`s3.us-west-004.backblazeb2.com`
 - Bucket：`pakari`
-- Key ID：`***REMOVED_B2_KEY_ID***`
+- 認証情報：リポジトリ直下の `.env`（コミットしない）に、キー ID を `B2_APPLICATION_KEY_ID`、シークレットを `B2_APPLICATION_KEY` として書く。
 - アクセスには aws CLI を使う（`uv tool install awscli` で導入する）。
 
 ### コンテナ再起動時の復元手順
@@ -149,9 +149,10 @@ sudo ln -sf /data/share159 /repo
 export PATH="/repo/.local/bin:/home/ubuntu/.local/bin:$PATH"
 uv tool install awscli
 
-# 3. B2からHDF5をダウンロード・展開
-export AWS_ACCESS_KEY_ID=***REMOVED_B2_KEY_ID***
-export AWS_SECRET_ACCESS_KEY=<.envのB2_APPLICATION_KEYを参照>
+# 3. B2からHDF5をダウンロード・展開（認証情報は .env から読む）
+. /repo/SiFiGAN/.env
+export AWS_ACCESS_KEY_ID="$B2_APPLICATION_KEY_ID"
+export AWS_SECRET_ACCESS_KEY="$B2_APPLICATION_KEY"
 mkdir -p /tmp/libritts_r
 aws s3 cp s3://pakari/libritts_r_hdf5.tar.gz /tmp/libritts_r_hdf5.tar.gz \
     --endpoint-url https://s3.us-west-004.backblazeb2.com
