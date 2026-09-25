@@ -10,3 +10,6 @@ __pycache__
 egs/*/exp
 
 .env
+
+# Hugging Face 公開用の成果物 (学習済みモデル等)
+hf-release/
