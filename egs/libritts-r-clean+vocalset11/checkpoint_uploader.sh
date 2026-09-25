@@ -7,12 +7,17 @@
 #
 # 実行方法:
 #   tmux new-session -d -s uploader "bash /root/SiFiGAN/egs/libritts-r-clean+vocalset11/checkpoint_uploader.sh"
+#
+# B2 の認証情報はリポジトリ直下の .env (コミットしない) から読む。
+# .env には B2_APPLICATION_KEY_ID (キー ID) と B2_APPLICATION_KEY (シークレット) を書く。
 
 set -u
 
 export PATH="/root/.local/bin:$PATH"
-export AWS_ACCESS_KEY_ID=***REMOVED_B2_KEY_ID***
-export AWS_SECRET_ACCESS_KEY=***REMOVED_B2_APPLICATION_KEY***
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+. "$REPO_ROOT/.env"
+export AWS_ACCESS_KEY_ID="${B2_APPLICATION_KEY_ID:?.env に設定されていない}"
+export AWS_SECRET_ACCESS_KEY="${B2_APPLICATION_KEY:?.env に設定されていない}"
 ENDPOINT="--endpoint-url https://s3.us-west-004.backblazeb2.com"
 
 WATCH_DIR="/workspace/exp/sifigan_1000k/checkpoints"
