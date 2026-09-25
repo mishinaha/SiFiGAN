@@ -84,7 +84,7 @@ B2 Storage `s3://pakari/` (Backblaze, endpoint `s3.us-west-004.backblazeb2.com`,
 - `logs/*.log` (prepare, vocalset_resample, compute_statistics, train, checkpoint_upload)
 - `author/` (比較検証用の作者事前学習モデル + stats)
 
-認証情報は `.env` の `B2_APLICATION_KEY` を参照。CLI は `uv tool install awscli` で導入し、
+認証情報は `.env` の `B2_APPLICATION_KEY_ID` (キー ID) と `B2_APPLICATION_KEY` (シークレット) を参照。CLI は `uv tool install awscli` で導入し、
 `aws --endpoint-url https://s3.us-west-004.backblazeb2.com s3 ...` で操作。
 
 ## 学習環境 (参考)
