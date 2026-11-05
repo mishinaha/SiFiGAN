@@ -4,23 +4,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-SiFiGAN (Source-Filter HiFi-GAN) — a PyTorch implementation of a fast and pitch-controllable high-fidelity neural vocoder. Based on ICASSP 2023 paper by Reo Yoneyama (Nagoya University).
+SiFiGAN (Source-Filter HiFi-GAN): a PyTorch implementation of a fast and pitch-controllable high-fidelity neural vocoder. Based on ICASSP 2023 paper by Reo Yoneyama (Nagoya University).
 
 フォークしてフルスクラッチ学習を完遂済み (1,000,000ステップ、2026-04-16完了)。
 経緯と学び: `doc/260417-1-train.md`、関連文書: `doc/Prepare.md`, `doc/VocalSet.md`, `doc/LibriTTS-R.md`。
 
 ## Setup
 
-uv (Python 3.11) で環境管理。
+uv で環境管理する。
+Python の要件は `pyproject.toml` の `requires-python` を参照（3.11 以上）。
 
 ```bash
 uv sync --python 3.11
 uv run sifigan-train ...   # コマンドは uv run 経由
 ```
 
-`pyproject.toml` が正、`setup.py` も残存するが従属。PyTorch は `find-links = ["https://download.pytorch.org/whl/cu128"]` 指定。
-新しい GPU 環境では `uv pip install --index-url https://download.pytorch.org/whl/cu128 torch==2.11.0 torchaudio==2.11.0`
-で CUDA ABI を合わせる必要がある場合あり (PyTorch 2.11.0+cu130 は Driver 12.8 系だと CUDA: False になる)。
+パッケージの定義は `pyproject.toml` にある。
+`setup.py` は、`setup.py` を直接呼ぶツールのための最小の互換用ファイルである。
+PyTorch（torch、torchaudio）は `[tool.uv.sources]` で PyTorch の CUDA 13.0 用インデックス（cu130）から取得する。
+正確なバージョンは `pyproject.toml` と `uv.lock` を見ること。
+flash_attn には依存しない。
+新しい GPU 環境では、ドライバが対応する CUDA と PyTorch のビルドの CUDA ABI が合わず、`torch.cuda.is_available()` が False になる場合がある。
+たとえば ruthor（Driver 12.8 系）では cu130 のビルドが動かず、cu128 のビルドを `uv pip install --index-url https://download.pytorch.org/whl/cu128 ...` で入れ直した（`doc/260417-1-train.md`）。
+その場合はドライバを更新するか、そのマシンだけ別の CUDA 版のビルドを入れる。
 
 ## CLI Commands
 
@@ -96,7 +102,7 @@ B2 Storage `s3://pakari/` (Backblaze, endpoint `s3.us-west-004.backblazeb2.com`,
 - 学習データは必ず**エフェメラル** `/root/data/` に配置すること。MooseFS は小ファイル書き込みが60-90倍遅い
 - Pod 停止中でもディスクは残るが、Pod 消滅時は B2 から復元する想定で設計 (`doc/260417-1-train.md` 参照)
 
-### 再学習・推論の入り口
+### 再学習と推論の入り口
 
 - 学習再開: `egs/libritts-r-clean+vocalset11/run_train_ruthor.sh` (resume=300000 前提、パス調整して使う)
 - B2自動アップロード: `egs/libritts-r-clean+vocalset11/checkpoint_uploader.sh` (inotifywait で `.pkl` を監視)
@@ -123,10 +129,10 @@ SSH 先でブロッキングループし、Bash tool の foreground (最大10分
 
 ### ロギングの必須項目
 
-学習・前処理実行時は以下を必ずログに残す (`.claude/rules/logging.md`):
+学習や前処理の実行時は以下を必ずログに残す (`.claude/rules/logging.md`):
 - 実行時の Git コミットハッシュとブランチ
 - 実行コマンド全文とパラメータ
-- 入出力ファイル数・サイズ、所要時間
+- 入出力ファイルの数とサイズ、所要時間
 - 永続ストレージ (`/workspace/logs/`) + B2 (`s3://pakari/logs/`) の両方に保存
 
 ## Git 運用
@@ -139,5 +145,18 @@ SSH 先でブロッキングループし、Bash tool の foreground (最大10分
 ## 既知の制約
 
 - 極端な F0 (非常に低い声/高い声) でノイズ化や F0 変更が効かない区間が散発的に発生する。
-  作者の事前学習モデルでも同様に再現するため、SiFiGAN のアーキテクチャ/特徴量抽出パイプライン起因と推測。
-  現状は未対応 (詳細は `doc/260417-1-train.md` §5)。
+  作者の事前学習モデルでも同様に再現する (`doc/260417-1-train.md` §5)。
+- 原因は `doc/260728-1-report.md` で分析した。
+  主な原因は WORLD d4c の D4CLoveTrain の誤判定による非周期性の飽和と、入力の超低域ランブルによる harvest の F0 過小追従である。
+  学習分布の外にある高 F0 も独立の寄与因子として残り、これは特徴量の補正では直らない。
+- `sifigan-anasyn` (`sifigan/bin/anasyn.py`) にはルールベース補正を実装済み。
+  設定キーと既定値は `sifigan/bin/config/anasyn.yaml` を参照。
+  - Fix E (`correct_analysis_hp`、分析信号の 70 Hz ハイパス): 既定 ON
+  - Fix G (`correct_f0_undershoot`、参照検証つき F0 置換): 既定 OFF
+  - Fix A (`correct_ap_saturation`、飽和した ap の補修): 既定 OFF
+  - Fix D (`correct_bap_clip`、bap の学習統計によるクリップ): 既定 OFF
+  - 報告書の推奨構成は E + A + D + G (`correct_ap_saturation=true correct_bap_clip=true correct_f0_undershoot=true`)。
+- `extract_features.py` と、その HDF5 を使う `decode.py` には Fix A、D、G が入っていない。
+  学習データの特徴量も補正前の d4c の出力である。
+  なお `extract_features.py` には low-cut filter (`highpass_cutoff`、既定 70 Hz) があり、分析前に適用される。
+  これは Fix E とは別の実装である。
